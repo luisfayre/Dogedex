@@ -14,6 +14,7 @@ suspend fun <T> makeNetworkCall(
     try {
         ApiResponseStatus.Success(call())
     } catch (e: UnknownHostException) {
+        Log.wtf("tag",e)
         ApiResponseStatus.Error(R.string.unknown_host_exception_error)
 
 
@@ -23,8 +24,10 @@ suspend fun <T> makeNetworkCall(
         } else {
             R.string.unknown_error
         }
+        Log.wtf("tag",e)
         ApiResponseStatus.Error(errorMessage)
     } catch (e: Exception) {
+        Log.wtf("tag",e.message)
         val errorMessage = when (e.message) {
             "sign_up_error" -> R.string.error_sign_up
             "sign_in_error" -> R.string.error_sign_in

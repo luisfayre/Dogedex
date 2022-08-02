@@ -3,6 +3,7 @@ package com.example.dogedex.auth
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
@@ -39,6 +40,8 @@ class LoginActivity : AppCompatActivity(), LoginFragment.LoginFragmentActions,
         }
         authViewModel.user.observe(this) { user ->
             if (user != null) {
+                Log.wtf("TAG user", user?.toString())
+
                 User.setLoggedInUser(this, user)
                 startMainActivity()
             }
