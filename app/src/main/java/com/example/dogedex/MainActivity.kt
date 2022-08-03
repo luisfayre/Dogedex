@@ -9,12 +9,10 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.Preview
+import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import com.example.dogedex.api.ApiServiceInterceptor
 import com.example.dogedex.auth.LoginActivity
 import com.example.dogedex.databinding.ActivityMainBinding
@@ -140,8 +138,27 @@ class MainActivity : AppCompatActivity() {
 
             val cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
+
+            val imageAnalysis = ImageAnalysis.Builder()
+                // enable the following line if RGBA output is needed.
+                // .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+            imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
+                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
+
+                imageProxy.close()
+            }
+
+
             // Bind use case to camera
-            cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
+            cameraProvider.bindToLifecycle(
+                this,
+                cameraSelector,
+                preview,
+                imageCapture,
+                imageAnalysis
+            )
         }, ContextCompat.getMainExecutor(this))
     }
 
@@ -156,9 +173,18 @@ class MainActivity : AppCompatActivity() {
                 }
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    // insert your code here.
+                    val photoUri = outputFileResults.savedUri
+                    openWholeImageActivity(photoUri.toString())
+
                 }
             })
+    }
+
+    private fun openWholeImageActivity(photoUri: String) {
+        val intent = Intent(this, WhoImageActivity::class.java)
+        intent.putExtra(WhoImageActivity.PHOTO_URI_KEY, photoUri)
+        startActivity(intent)
+
     }
 
     private fun getOutputPhotoFile(): File {
