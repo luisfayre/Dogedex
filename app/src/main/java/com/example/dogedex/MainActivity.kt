@@ -3,9 +3,12 @@ package com.example.dogedex
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.FileUtils
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
@@ -17,8 +20,10 @@ import com.example.dogedex.api.ApiServiceInterceptor
 import com.example.dogedex.auth.LoginActivity
 import com.example.dogedex.databinding.ActivityMainBinding
 import com.example.dogedex.doglist.DogListActivity
+import com.example.dogedex.machinelearning.Classifier
 import com.example.dogedex.models.User
 import com.example.dogedex.settings.SettingsActivity
+import org.tensorflow.lite.support.common.FileUtil
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -43,6 +48,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var imageCapture: ImageCapture
     private lateinit var cameraExecutor: ExecutorService
+    private lateinit var classifier: Classifier
+
     private var isCameraReady = false
 
 
@@ -74,6 +81,16 @@ class MainActivity : AppCompatActivity() {
         }
 
         requestCameraPermission()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        classifier = Classifier(
+            FileUtil.loadMappedFile(this@MainActivity, MODEL_PATH), FileUtil.loadLabels(
+                this@MainActivity,
+                LABEL_PATH
+            )
+        )
     }
 
     private fun setUpCamera() {
@@ -174,6 +191,10 @@ class MainActivity : AppCompatActivity() {
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
                     val photoUri = outputFileResults.savedUri
+
+
+                    val bitmap = BitmapFactory.decodeFile(photoUri?.path)
+                    classifier.recognizeImage(bitmap)
                     openWholeImageActivity(photoUri.toString())
 
                 }
