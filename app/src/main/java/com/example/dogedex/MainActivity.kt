@@ -10,6 +10,8 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
@@ -19,6 +21,9 @@ import com.example.dogedex.databinding.ActivityMainBinding
 import com.example.dogedex.doglist.DogListActivity
 import com.example.dogedex.models.User
 import com.example.dogedex.settings.SettingsActivity
+import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,7 +32,7 @@ class MainActivity : AppCompatActivity() {
             ActivityResultContracts.RequestPermission()
         ) { isGranted: Boolean ->
             if (isGranted) {
-                startCamera()
+                setUpCamera()
             } else {
                 Toast.makeText(
                     this,
@@ -38,6 +43,10 @@ class MainActivity : AppCompatActivity() {
         }
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var imageCapture: ImageCapture
+    private lateinit var cameraExecutor: ExecutorService
+    private var isCameraReady = false
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +70,26 @@ class MainActivity : AppCompatActivity() {
             openDogListActivity()
         }
 
+        binding.takePhotoTab.setOnClickListener {
+            if (isCameraReady)
+                takePhoto()
+        }
+
         requestCameraPermission()
+    }
+
+    private fun setUpCamera() {
+        binding.previewView.post {
+            imageCapture = ImageCapture.Builder()
+                .setTargetRotation(binding.previewView.display.rotation)
+                .build()
+
+            // Initialize our background executor
+            cameraExecutor = Executors.newSingleThreadExecutor()
+            startCamera()
+            isCameraReady = true
+        }
+
     }
 
     private fun requestCameraPermission() {
@@ -71,7 +99,7 @@ class MainActivity : AppCompatActivity() {
                     this,
                     Manifest.permission.CAMERA
                 ) == PackageManager.PERMISSION_GRANTED -> {
-                    // You can use the API that requires the permission.
+                    setUpCamera()
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
                 -> {
@@ -94,7 +122,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         } else {
-            startCamera()
+            setUpCamera()
         }
     }
 
@@ -105,16 +133,43 @@ class MainActivity : AppCompatActivity() {
             val cameraProvider = cameraProviderFuture.get()
 
             // Preview
-            var preview: Preview = Preview.Builder()
+            val preview: Preview = Preview.Builder()
                 .build()
 
             preview.setSurfaceProvider(binding.previewView.surfaceProvider)
 
-            var cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+            val cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
 
             // Bind use case to camera
-            cameraProvider.bindToLifecycle(this, cameraSelector, preview)
+            cameraProvider.bindToLifecycle(this, cameraSelector, preview, imageCapture)
         }, ContextCompat.getMainExecutor(this))
+    }
+
+
+    private fun takePhoto() {
+        val outputFileOptions = ImageCapture.OutputFileOptions.Builder(getOutputPhotoFile()).build()
+        imageCapture.takePicture(outputFileOptions, cameraExecutor,
+            object : ImageCapture.OnImageSavedCallback {
+                override fun onError(error: ImageCaptureException) {
+                    Toast.makeText(this@MainActivity, "Error taking photo", Toast.LENGTH_SHORT)
+                        .show()
+                }
+
+                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                    // insert your code here.
+                }
+            })
+    }
+
+    private fun getOutputPhotoFile(): File {
+        val mediaDir = externalMediaDirs.firstOrNull()?.let {
+            File(it, resources.getString(R.string.app_name) + ".jpg").apply { mkdir() }
+        }
+        return if (mediaDir != null && mediaDir.exists()) {
+            mediaDir
+        } else {
+            filesDir
+        }
     }
 
     private fun openDogListActivity() {
@@ -127,5 +182,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun openLoginActivity() {
         startActivity(Intent(this, LoginActivity::class.java))
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        if (::cameraExecutor.isInitialized) {
+            cameraExecutor.shutdown()
+
+        }
     }
 }
