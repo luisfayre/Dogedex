@@ -26,6 +26,7 @@ import com.example.dogedex.auth.LoginActivity
 import com.example.dogedex.databinding.ActivityMainBinding
 import com.example.dogedex.dogdetail.DogDetailActivity
 import com.example.dogedex.dogdetail.DogDetailActivity.Companion.DOG_KEY
+import com.example.dogedex.dogdetail.DogDetailActivity.Companion.IS_RECOGNITION_KEY
 import com.example.dogedex.doglist.DogListActivity
 import com.example.dogedex.machinelearning.Classifier
 import com.example.dogedex.machinelearning.DogRecognition
@@ -61,6 +62,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var classifier: Classifier
     private val mainViewModel: MainViewModel by viewModels()
+
 
     private var isCameraReady = false
 
@@ -105,19 +107,25 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        mainViewModel.dogRecognition.observe(this) {
+            enableTakePhotoButton(it)
+
+        }
+
         requestCameraPermission()
     }
 
     private fun openDogDetailActivity(dog: Dog) {
         val intent = Intent(this, DogDetailActivity::class.java)
         intent.putExtra(DOG_KEY, dog)
+        intent.putExtra(IS_RECOGNITION_KEY, true)
         startActivity(intent)
 
     }
 
     override fun onStart() {
         super.onStart()
-        classifier = Classifier(
+        mainViewModel.setUpClassifier(
             FileUtil.loadMappedFile(this@MainActivity, MODEL_PATH), FileUtil.loadLabels(
                 this@MainActivity,
                 LABEL_PATH
@@ -195,12 +203,12 @@ class MainActivity : AppCompatActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
             imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                val bitmap = imageProxy.image?.toBitmap()
-                if (bitmap != null) {
-                    val dogRecognition = classifier.recognizeImage(bitmap).first()
-                    enableTakePhotoButton(dogRecognition)
-                }
-                imageProxy.close()
+                mainViewModel.recognizeImage(imageProxy)
+
+
+                // enableTakePhotoButton(dogRecognition)
+
+
             }
 
 
@@ -227,7 +235,7 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
-    
+
     private fun openDogListActivity() {
         startActivity(Intent(this, DogListActivity::class.java))
     }
@@ -249,22 +257,5 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun Image.toBitmap(): Bitmap {
-        val yBuffer = planes[0].buffer // Y
-        val vuBuffer = planes[2].buffer // VU
 
-        val ySize = yBuffer.remaining()
-        val vuSize = vuBuffer.remaining()
-
-        val nv21 = ByteArray(ySize + vuSize)
-
-        yBuffer.get(nv21, 0, ySize)
-        vuBuffer.get(nv21, ySize, vuSize)
-
-        val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
-        val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 50, out)
-        val imageBytes = out.toByteArray()
-        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-    }
 }

@@ -33,13 +33,6 @@ class DogListViewModel : ViewModel() {
         }
     }
 
-    fun addDogToUser(dogId: Long) {
-        viewModelScope.launch {
-            _status.value = ApiResponseStatus.Loading()
-            handelAddDogToUserResponseStatus(dogRepository.addDogToUser(dogId))
-        }
-    }
-
     @SuppressLint("NullSafeMutableLiveData")
     @Suppress("UNCHECKED_CAST")
     private fun handelResponseStatus(apiResponseStatus: ApiResponseStatus<List<Dog>>) {

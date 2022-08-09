@@ -38,9 +38,7 @@ class DogListActivity : AppCompatActivity() {
         }
         recycler.adapter = adapter
 
-        adapter.setLongItemClickListener {
-            dogListViewModel.addDogToUser(it.id)
-        }
+
 
         dogListViewModel.dogList.observe(this) { dogList ->
             adapter.submitList(dogList)
