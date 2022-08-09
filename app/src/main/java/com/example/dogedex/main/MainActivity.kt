@@ -1,32 +1,43 @@
-package com.example.dogedex
+package com.example.dogedex.main
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.*
+import android.media.Image
 import android.os.Build
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.FileUtils
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
-import androidx.lifecycle.LifecycleOwner
+import com.example.dogedex.LABEL_PATH
+import com.example.dogedex.MODEL_PATH
+import com.example.dogedex.R
+import com.example.dogedex.api.ApiResponseStatus
 import com.example.dogedex.api.ApiServiceInterceptor
 import com.example.dogedex.auth.LoginActivity
 import com.example.dogedex.databinding.ActivityMainBinding
+import com.example.dogedex.dogdetail.DogDetailActivity
+import com.example.dogedex.dogdetail.DogDetailActivity.Companion.DOG_KEY
 import com.example.dogedex.doglist.DogListActivity
 import com.example.dogedex.machinelearning.Classifier
+import com.example.dogedex.machinelearning.DogRecognition
+import com.example.dogedex.models.Dog
 import com.example.dogedex.models.User
 import com.example.dogedex.settings.SettingsActivity
 import org.tensorflow.lite.support.common.FileUtil
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -49,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var imageCapture: ImageCapture
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var classifier: Classifier
+    private val mainViewModel: MainViewModel by viewModels()
 
     private var isCameraReady = false
 
@@ -75,12 +87,32 @@ class MainActivity : AppCompatActivity() {
             openDogListActivity()
         }
 
-        binding.takePhotoTab.setOnClickListener {
-            if (isCameraReady)
-                takePhoto()
+        mainViewModel.status.observe(this) { status ->
+            when (status) {
+                is ApiResponseStatus.Error -> {
+                    binding.progressBar.visibility = View.GONE
+                    Toast.makeText(this, status.message, Toast.LENGTH_SHORT).show()
+                }
+                is ApiResponseStatus.Loading -> binding.progressBar.visibility = View.VISIBLE
+
+                is ApiResponseStatus.Success -> binding.progressBar.visibility = View.GONE
+            }
+        }
+
+        mainViewModel.dog.observe(this) { dog ->
+            if (dog != null) {
+                openDogDetailActivity(dog)
+            }
         }
 
         requestCameraPermission()
+    }
+
+    private fun openDogDetailActivity(dog: Dog) {
+        val intent = Intent(this, DogDetailActivity::class.java)
+        intent.putExtra(DOG_KEY, dog)
+        startActivity(intent)
+
     }
 
     override fun onStart() {
@@ -141,6 +173,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("UnsafeOptInUsageError")
     private fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
@@ -162,8 +195,11 @@ class MainActivity : AppCompatActivity() {
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .build()
             imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
-                val rotationDegrees = imageProxy.imageInfo.rotationDegrees
-
+                val bitmap = imageProxy.image?.toBitmap()
+                if (bitmap != null) {
+                    val dogRecognition = classifier.recognizeImage(bitmap).first()
+                    enableTakePhotoButton(dogRecognition)
+                }
                 imageProxy.close()
             }
 
@@ -179,46 +215,19 @@ class MainActivity : AppCompatActivity() {
         }, ContextCompat.getMainExecutor(this))
     }
 
-
-    private fun takePhoto() {
-        val outputFileOptions = ImageCapture.OutputFileOptions.Builder(getOutputPhotoFile()).build()
-        imageCapture.takePicture(outputFileOptions, cameraExecutor,
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onError(error: ImageCaptureException) {
-                    Toast.makeText(this@MainActivity, "Error taking photo", Toast.LENGTH_SHORT)
-                        .show()
-                }
-
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    val photoUri = outputFileResults.savedUri
-
-
-                    val bitmap = BitmapFactory.decodeFile(photoUri?.path)
-                    classifier.recognizeImage(bitmap)
-                    openWholeImageActivity(photoUri.toString())
-
-                }
-            })
-    }
-
-    private fun openWholeImageActivity(photoUri: String) {
-        val intent = Intent(this, WhoImageActivity::class.java)
-        intent.putExtra(WhoImageActivity.PHOTO_URI_KEY, photoUri)
-        startActivity(intent)
-
-    }
-
-    private fun getOutputPhotoFile(): File {
-        val mediaDir = externalMediaDirs.firstOrNull()?.let {
-            File(it, resources.getString(R.string.app_name) + ".jpg").apply { mkdir() }
-        }
-        return if (mediaDir != null && mediaDir.exists()) {
-            mediaDir
+    private fun enableTakePhotoButton(dogRecognition: DogRecognition) {
+        if (dogRecognition.confidence > 70.0) {
+            binding.takePhotoTab.alpha = 1f
+            binding.takePhotoTab.setOnClickListener {
+                mainViewModel.getDogByMlId(dogRecognition.id)
+            }
         } else {
-            filesDir
+            binding.takePhotoTab.alpha = 0.2f
+            binding.takePhotoTab.setOnClickListener(null)
         }
-    }
 
+    }
+    
     private fun openDogListActivity() {
         startActivity(Intent(this, DogListActivity::class.java))
     }
@@ -238,5 +247,24 @@ class MainActivity : AppCompatActivity() {
             cameraExecutor.shutdown()
 
         }
+    }
+
+    fun Image.toBitmap(): Bitmap {
+        val yBuffer = planes[0].buffer // Y
+        val vuBuffer = planes[2].buffer // VU
+
+        val ySize = yBuffer.remaining()
+        val vuSize = vuBuffer.remaining()
+
+        val nv21 = ByteArray(ySize + vuSize)
+
+        yBuffer.get(nv21, 0, ySize)
+        vuBuffer.get(nv21, ySize, vuSize)
+
+        val yuvImage = YuvImage(nv21, ImageFormat.NV21, this.width, this.height, null)
+        val out = ByteArrayOutputStream()
+        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 50, out)
+        val imageBytes = out.toByteArray()
+        return BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
     }
 }

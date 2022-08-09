@@ -7,6 +7,7 @@ import com.example.dogedex.api.dto.user.AddDogToUserDTO
 import com.example.dogedex.api.responses.DefaultResponse
 import com.example.dogedex.api.responses.DogListApiResponse
 import com.example.dogedex.api.responses.auth.AuthApiResponse
+import com.example.dogedex.api.responses.dogs.DogApiResponse
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -40,6 +41,9 @@ interface ApiService {
     @Headers("${ApiServiceInterceptor.NEEDS_AUTH_HEADER_KEY}: true")
     @GET(GET_USER_DOGS_URL)
     suspend fun getUserDogs(): DogListApiResponse
+
+    @GET(GET_DOG_VY_ML_ID)
+    suspend fun getDogByMlId(@Query("ml_id") mlId:String): DogApiResponse
 }
 
 object DogsApi {

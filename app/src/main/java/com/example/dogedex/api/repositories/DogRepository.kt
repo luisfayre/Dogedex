@@ -1,6 +1,7 @@
 package com.example.dogedex.api.repositories
 
 import android.util.Log
+import androidx.lifecycle.viewModelScope
 import com.example.dogedex.R
 import com.example.dogedex.models.Dog
 import com.example.dogedex.api.ApiResponseStatus
@@ -10,6 +11,7 @@ import com.example.dogedex.api.dto.DogDTOMapper
 import com.example.dogedex.api.dto.user.AddDogToUserDTO
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class DogRepository {
@@ -81,5 +83,16 @@ class DogRepository {
         val dogDTOList = dogListApiResponse.data.dogs
         val dogDTOMapper = DogDTOMapper()
         dogDTOMapper.fromDogDTOListToDogDomainList(dogDTOList)
+    }
+
+    suspend fun getDogByMlId(mlDogId: String): ApiResponseStatus<Dog> = makeNetworkCall {
+        val response = retrofitService.getDogByMlId(mlDogId)
+
+        if (!response.isSuccess) {
+            throw Exception(response.message)
+        }
+
+        val dogDTOMapper = DogDTOMapper()
+        dogDTOMapper.fromDogDTOToDogDomain(response.data.dog)
     }
 }
