@@ -7,13 +7,15 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.recyclerview.widget.GridLayoutManager
+import coil.annotation.ExperimentalCoilApi
 import com.example.dogedex.api.ApiResponseStatus
 import com.example.dogedex.databinding.ActivityDogListBinding
-import com.example.dogedex.dogdetail.DogDetailActivity
-import com.example.dogedex.dogdetail.DogDetailActivity.Companion.DOG_KEY
+import com.example.dogedex.dogdetail.DogDetailComposeActivity.Companion.DOG_KEY
+import com.example.dogedex.dogdetail.DogDetailComposeActivity
 
 private const val GRID_SPAN_COUNT = 3
 
+@ExperimentalCoilApi
 class DogListActivity : AppCompatActivity() {
 
     private val dogListViewModel: DogListViewModel by viewModels()
@@ -32,7 +34,7 @@ class DogListActivity : AppCompatActivity() {
 
         adapter.setOnItemClickListener {
             // Passar el dog a DogDetailActivity
-            val intent = Intent(this, DogDetailActivity::class.java)
+            val intent = Intent(this, DogDetailComposeActivity::class.java)
             intent.putExtra(DOG_KEY, it)
             startActivity(intent)
         }

@@ -31,5 +31,6 @@
     <string name="wrong_user_or_password">Wrong user or password</string>
     <string name="logout">Logout</string>
     <string name="error_adding_dog">Error adding dog to collection</string>
+    <string name="title_activity_dog_detail_compose">DogDetailComposeActivity</string>
     P
 </resources>

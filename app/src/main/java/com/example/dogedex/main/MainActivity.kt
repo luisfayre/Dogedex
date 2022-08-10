@@ -19,14 +19,13 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.example.dogedex.LABEL_PATH
 import com.example.dogedex.MODEL_PATH
-import com.example.dogedex.R
 import com.example.dogedex.api.ApiResponseStatus
 import com.example.dogedex.api.ApiServiceInterceptor
 import com.example.dogedex.auth.LoginActivity
 import com.example.dogedex.databinding.ActivityMainBinding
-import com.example.dogedex.dogdetail.DogDetailActivity
-import com.example.dogedex.dogdetail.DogDetailActivity.Companion.DOG_KEY
-import com.example.dogedex.dogdetail.DogDetailActivity.Companion.IS_RECOGNITION_KEY
+import com.example.dogedex.dogdetail.DogDetailComposeActivity.Companion.DOG_KEY
+import com.example.dogedex.dogdetail.DogDetailComposeActivity.Companion.IS_RECOGNITION_KEY
+import com.example.dogedex.dogdetail.DogDetailComposeActivity
 import com.example.dogedex.doglist.DogListActivity
 import com.example.dogedex.machinelearning.Classifier
 import com.example.dogedex.machinelearning.DogRecognition
@@ -116,7 +115,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun openDogDetailActivity(dog: Dog) {
-        val intent = Intent(this, DogDetailActivity::class.java)
+        val intent = Intent(this, DogDetailComposeActivity::class.java)
         intent.putExtra(DOG_KEY, dog)
         intent.putExtra(IS_RECOGNITION_KEY, true)
         startActivity(intent)
@@ -224,7 +223,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun enableTakePhotoButton(dogRecognition: DogRecognition) {
-        if (dogRecognition.confidence > 70.0) {
+        if (dogRecognition.confidence > 40.0) {
             binding.takePhotoTab.alpha = 1f
             binding.takePhotoTab.setOnClickListener {
                 mainViewModel.getDogByMlId(dogRecognition.id)
