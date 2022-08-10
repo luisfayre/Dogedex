@@ -1,6 +1,5 @@
 package com.example.dogedex.api
 
-import android.util.Log
 import com.example.dogedex.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

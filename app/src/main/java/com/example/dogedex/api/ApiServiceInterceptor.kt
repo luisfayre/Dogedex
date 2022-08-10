@@ -17,7 +17,7 @@ object ApiServiceInterceptor : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         val requestBuilder = request.newBuilder()
-        if (request.headers(NEEDS_AUTH_HEADER_KEY) != null) {
+        if (request.headers[NEEDS_AUTH_HEADER_KEY] != null) {
             if (sessionToken == null) {
                 throw  RuntimeException("Need to be authenticated to perfon")
             } else {

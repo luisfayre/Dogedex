@@ -4,7 +4,7 @@ import com.example.dogedex.models.Dog
 
 class DogDTOMapper {
 
-    private fun fromDogDTOToDogDomain(dogDto: DogDTO): Dog {
+     fun fromDogDTOToDogDomain(dogDto: DogDTO): Dog {
         return Dog(
             dogDto.id,
             dogDto.index,
